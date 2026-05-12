@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.pytest_tmp/
+.scrapy/
+*.pyc
+data/
+infra_data/
+.env

@@ -1,0 +1,39 @@
+services:
+  mysql:
+    image: mysql:8
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: streetview
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+  crawler:
+    build: .
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_USER: root
+      MYSQL_PASSWORD: root
+      MYSQL_DATABASE: streetview
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      PYTHONPATH: /app/src
+    depends_on:
+      - mysql
+      - redis
+    volumes:
+      - .:/app
+      - ./data:/app/data
+    working_dir: /app
+
+volumes:
+  mysql_data:
+

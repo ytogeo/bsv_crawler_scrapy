@@ -1,0 +1,22 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {"name": "sample"},
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [116.3000, 39.9800],
+            [116.3040, 39.9800],
+            [116.3040, 39.9840],
+            [116.3000, 39.9840],
+            [116.3000, 39.9800]
+          ]
+        ]
+      }
+    }
+  ]
+}
+
