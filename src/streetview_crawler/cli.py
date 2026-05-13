@@ -1,3 +1,14 @@
+"""
+采集任务命令行入口。
+
+该模块负责创建或恢复 job，并协调三个运行单元：
+- 生成 seed_task 初始状态
+- 启动 Scrapy spider 完成 seed 和 metadata 抓取
+- 启动 pano_worker 消费 Redis 下载队列并生成本地全景图文件
+
+CLI 不直接解析接口响应，也不直接处理图片内容。
+"""
+
 from __future__ import annotations
 
 import argparse
@@ -9,7 +20,7 @@ from datetime import datetime
 from streetview_crawler.config import load_config, project_root, resolve_path
 from streetview_crawler.geo.seed_points import generate_seed_points
 from streetview_crawler.services.db import MySQLRepository
-from streetview_crawler.services.redis_queue import RedisAssetQueue
+from streetview_crawler.services.redis_queue import RedisPanoDownloadQueue
 from streetview_crawler.services.reporting import write_report
 
 
@@ -18,7 +29,7 @@ def run_job(config_path: str, job_id: str | None = None, resume: bool = False) -
     job_id = job_id or f"job_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
     db = MySQLRepository.from_env()
     key_prefix = config.get("redis", {}).get("key_prefix", "streetview")
-    queue = RedisAssetQueue.from_env(job_id, key_prefix)
+    queue = RedisPanoDownloadQueue.from_env(job_id, key_prefix)
 
     try:
         if not resume:
@@ -29,9 +40,9 @@ def run_job(config_path: str, job_id: str | None = None, resume: bool = False) -
             db.update_job_status(job_id, "running")
 
         queue.clear_job_keys()
-        _rebuild_asset_queue_from_mysql(db, queue, job_id, config)
+        _rebuild_pano_download_queue_from_mysql(db, queue, job_id, config)
 
-        worker_count = int(config.get("assets", {}).get("workers", 2))
+        worker_count = int(config.get("pano_file", {}).get("workers", 2))
         workers = [_start_worker(job_id, config_path) for _ in range(worker_count)]
         spider = _start_spider(job_id, config_path)
 
@@ -49,15 +60,15 @@ def run_job(config_path: str, job_id: str | None = None, resume: bool = False) -
         queue.close()
 
 
-def _rebuild_asset_queue_from_mysql(db: MySQLRepository, queue: RedisAssetQueue, job_id: str, config: dict) -> None:
-    asset_config = config.get("assets", {})
-    tasks = db.fetch_missing_asset_tasks(
+def _rebuild_pano_download_queue_from_mysql(db: MySQLRepository, queue: RedisPanoDownloadQueue, job_id: str, config: dict) -> None:
+    pano_file_config = config.get("pano_file", {})
+    tasks = db.fetch_missing_pano_file_tasks(
         job_id,
-        asset_config.get("asset_type", "panorama"),
-        asset_config.get("asset_spec", "full"),
+        pano_file_config.get("file_type", "panorama"),
+        pano_file_config.get("file_spec", "full"),
     )
     for task in tasks:
-        queue.push_asset_task(task)
+        queue.push_pano_download_task(task)
 
 
 def _start_spider(job_id: str, config_path: str) -> subprocess.Popen:
@@ -83,7 +94,7 @@ def _start_worker(job_id: str, config_path: str) -> subprocess.Popen:
         [
             sys.executable,
             "-m",
-            "streetview_crawler.asset_worker",
+            "streetview_crawler.pano_worker",
             "--job-id",
             job_id,
             "--config",

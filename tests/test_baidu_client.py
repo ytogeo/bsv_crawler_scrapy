@@ -1,4 +1,4 @@
-from streetview_crawler.services.baidu_client import (
+from streetview_crawler.providers.baidu import (
     extract_capture_date,
     extract_pano_lat,
     extract_pano_lng,
@@ -18,4 +18,3 @@ def test_extract_metadata_fields_from_flexible_json():
     assert extract_pano_lng(data) == 116.1
     assert extract_pano_lat(data) == 39.9
     assert extract_capture_date(data) == "2025-03"
-

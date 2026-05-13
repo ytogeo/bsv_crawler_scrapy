@@ -1,3 +1,23 @@
+"""
+MySQL Repository，封装采集系统的持久化读写和状态查询。
+
+该模块集中管理与 MySQL 相关的 SQL，避免 spider、pipeline、worker 和 CLI
+直接操作 cursor 或拼写 SQL。它负责把数据库表结构、幂等写入策略和断点重跑
+判断封装在统一的数据访问接口中。
+
+主要封装：
+- job 生命周期：create_job、update_job_status
+- seed 状态写入：upsert_seed_tasks_pending、upsert_seed_task
+- pano 元数据写入：upsert_pano
+- pano 文件结果写入：upsert_pano_file_success、upsert_pano_file_failed
+- 错误记录写入：insert_crawl_error
+- 断点重跑查询：fetch_seed_requests、fetch_metadata_requests、fetch_missing_pano_file_tasks
+- 报告统计查询：job_counts
+
+设计上属于 Repository Pattern 的简化实现。调用方只关心“读写哪类业务状态”，
+不需要关心具体 SQL、唯一键和 upsert 细节。
+"""
+
 from __future__ import annotations
 
 import json
@@ -133,10 +153,10 @@ class MySQLRepository:
             ),
         )
 
-    def upsert_pano_asset_success(self, task: dict[str, Any], file_info: dict[str, Any]) -> None:
+    def upsert_pano_file_success(self, task: dict[str, Any], file_info: dict[str, Any]) -> None:
         sql = """
-        INSERT INTO pano_asset (
-          job_id, panoid, asset_type, asset_spec, file_path, file_size_bytes,
+        INSERT INTO pano_file (
+          job_id, panoid, file_type, file_spec, file_path, file_size_bytes,
           width, height, sha256, status, error_message
         )
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'success', NULL)
@@ -154,8 +174,8 @@ class MySQLRepository:
             (
                 task["job_id"],
                 task["panoid"],
-                task["asset_type"],
-                task["asset_spec"],
+                task["file_type"],
+                task["file_spec"],
                 file_info["file_path"],
                 file_info["file_size_bytes"],
                 file_info["width"],
@@ -164,15 +184,15 @@ class MySQLRepository:
             ),
         )
 
-    def upsert_pano_asset_failed(self, task: dict[str, Any], error_message: str) -> None:
+    def upsert_pano_file_failed(self, task: dict[str, Any], error_message: str) -> None:
         sql = """
-        INSERT INTO pano_asset (job_id, panoid, asset_type, asset_spec, status, error_message)
+        INSERT INTO pano_file (job_id, panoid, file_type, file_spec, status, error_message)
         VALUES (%s, %s, %s, %s, 'failed', %s)
         ON DUPLICATE KEY UPDATE status = 'failed', error_message = VALUES(error_message)
         """
         self.execute(
             sql,
-            (task["job_id"], task["panoid"], task["asset_type"], task["asset_spec"], error_message),
+            (task["job_id"], task["panoid"], task["file_type"], task["file_spec"], error_message),
         )
 
     def insert_crawl_error(self, item: dict[str, Any]) -> None:
@@ -222,24 +242,24 @@ class MySQLRepository:
             (job_id,),
         )
 
-    def fetch_missing_asset_tasks(self, job_id: str, asset_type: str, asset_spec: str) -> list[dict[str, Any]]:
+    def fetch_missing_pano_file_tasks(self, job_id: str, file_type: str, file_spec: str) -> list[dict[str, Any]]:
         rows = self.fetchall(
             """
             SELECT p.job_id, p.panoid
             FROM pano p
-            LEFT JOIN pano_asset a
+            LEFT JOIN pano_file a
               ON p.job_id = a.job_id
              AND p.panoid = a.panoid
-             AND a.asset_type = %s
-             AND a.asset_spec = %s
+             AND a.file_type = %s
+             AND a.file_spec = %s
              AND a.status = 'success'
             WHERE p.job_id = %s AND a.panoid IS NULL
             ORDER BY p.panoid
             """,
-            (asset_type, asset_spec, job_id),
+            (file_type, file_spec, job_id),
         )
         return [
-            {"job_id": row["job_id"], "panoid": row["panoid"], "asset_type": asset_type, "asset_spec": asset_spec}
+            {"job_id": row["job_id"], "panoid": row["panoid"], "file_type": file_type, "file_spec": file_spec}
             for row in rows
         ]
 
@@ -247,7 +267,7 @@ class MySQLRepository:
         return {
             "seed": self.fetchall("SELECT status, COUNT(*) AS count FROM seed_task WHERE job_id=%s GROUP BY status", (job_id,)),
             "pano_count": self.fetchone("SELECT COUNT(*) AS count FROM pano WHERE job_id=%s", (job_id,))["count"],
-            "asset": self.fetchall("SELECT status, COUNT(*) AS count FROM pano_asset WHERE job_id=%s GROUP BY status", (job_id,)),
+            "pano_file": self.fetchall("SELECT status, COUNT(*) AS count FROM pano_file WHERE job_id=%s GROUP BY status", (job_id,)),
             "errors": self.fetchall("SELECT stage, COUNT(*) AS count FROM crawl_error WHERE job_id=%s GROUP BY stage", (job_id,)),
             "error_samples": self.fetchall(
                 "SELECT stage, error_type, error_message FROM crawl_error WHERE job_id=%s ORDER BY id DESC LIMIT 10",

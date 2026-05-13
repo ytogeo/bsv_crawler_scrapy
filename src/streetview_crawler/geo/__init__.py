@@ -1,2 +1,2 @@
-"""Spatial helper functions."""
+"""空间采样辅助函数包。"""
 

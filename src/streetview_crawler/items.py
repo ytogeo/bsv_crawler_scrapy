@@ -1,3 +1,16 @@
+"""
+Scrapy Item 定义模块。
+
+Item 是 spider 产出的结构化数据，也是 spider callback 与后续 pipeline
+之间的数据契约。Spider 只负责 yield Item，具体的持久化和队列派发由
+Pipeline 处理。
+
+当前定义：
+- SeedTaskItem：seed point 的处理结果
+- PanoItem：已确认 pano 的元数据和完整 raw_json
+- CrawlErrorItem：seed、metadata、pano_download 阶段的标准化错误记录
+"""
+
 import scrapy
 
 
@@ -33,4 +46,3 @@ class CrawlErrorItem(scrapy.Item):
     error_type = scrapy.Field()
     error_message = scrapy.Field()
     context_json = scrapy.Field()
-

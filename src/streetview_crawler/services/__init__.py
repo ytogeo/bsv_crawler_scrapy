@@ -1,2 +1,11 @@
-"""Service layer for database, queues, downloads, and reports."""
+"""
+服务层包，提供采集流程中可复用的基础设施和业务服务。
 
+该包中的模块供 spider、pipeline、pano worker 和 CLI 共同调用，用于隔离
+Scrapy 回调逻辑与外部系统访问、图片处理、报告生成等实现细节。
+
+当前包含：
+- MySQL 持久化与任务状态查询
+- Redis pano 下载队列与运行期去重
+- job 运行结果汇总与报告输出
+"""

@@ -1,15 +1,27 @@
+"""
+街景 metadata spider。
+
+StreetviewSpider 负责 seed 和 metadata 两个阶段的 Scrapy 请求流程：
+- 加载当前 job 的配置
+- 从 MySQL 读取可恢复的 seed / metadata 任务
+- 构造 seed 和 metadata Request
+- 将 seed 响应解析为 SeedTaskItem
+- 将 metadata 响应解析为 PanoItem
+- 将请求失败转换为 CrawlErrorItem
+
+该 spider 不直接写 MySQL、不推 Redis、不下载图片，也不生成报告。
+这些职责分别由 Item Pipeline、pano worker 和 reporting 服务承担。
+"""
+
 from __future__ import annotations
 
 import scrapy
 
 from streetview_crawler.config import load_config
 from streetview_crawler.items import CrawlErrorItem, PanoItem, SeedTaskItem
-from streetview_crawler.services.baidu_client import (
+from streetview_crawler.providers.baidu import (
     build_metadata_url,
-    build_mock_metadata_data,
-    build_mock_seed_data,
     build_seed_url,
-    data_url,
     extract_capture_date,
     extract_pano_lat,
     extract_pano_lng,
@@ -27,8 +39,6 @@ class StreetviewSpider(scrapy.Spider):
         self.config_path = config_path
         self.config = load_config(config_path)
         self.provider = self.config.get("crawler", {}).get("provider", "baidu")
-        self.mock_seed = bool(self.config.get("crawler", {}).get("mock_seed", False))
-        self.mock_metadata = bool(self.config.get("crawler", {}).get("mock_metadata", False))
         self.db: MySQLRepository | None = None
 
     @classmethod
@@ -38,6 +48,7 @@ class StreetviewSpider(scrapy.Spider):
 
     def start_requests(self):
         self.db = MySQLRepository.from_settings(self.settings)
+        # MySQL 保存阶段状态，spider 从仍需补跑的任务开始生成 Request。
         for row in self.db.fetch_seed_requests(self.job_id):
             yield self._build_seed_request(row)
 
@@ -49,11 +60,7 @@ class StreetviewSpider(scrapy.Spider):
             self.db.close()
 
     def _build_seed_request(self, row: dict):
-        if self.mock_seed:
-            payload = build_mock_seed_data(row["point_index"], row["lng"], row["lat"])
-            url = data_url(payload)
-        else:
-            url = build_seed_url(row["lng"], row["lat"])
+        url = build_seed_url(row["lng"], row["lat"])
         return scrapy.Request(
             url=url,
             callback=self.parse_seed,
@@ -68,11 +75,7 @@ class StreetviewSpider(scrapy.Spider):
         )
 
     def _build_metadata_request(self, row: dict):
-        if self.mock_metadata:
-            payload = build_mock_metadata_data(row["panoid"], row["lng"], row["lat"])
-            url = data_url(payload)
-        else:
-            url = build_metadata_url(row["panoid"])
+        url = build_metadata_url(row["panoid"])
         return scrapy.Request(
             url=url,
             callback=self.parse_metadata,
@@ -160,4 +163,3 @@ class StreetviewSpider(scrapy.Spider):
             error_message=str(failure.value),
             context_json=dict(request.meta),
         )
-

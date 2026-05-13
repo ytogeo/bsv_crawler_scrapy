@@ -1,4 +1,4 @@
-from streetview_crawler.services.redis_queue import RedisAssetQueue
+from streetview_crawler.services.redis_queue import RedisPanoDownloadQueue
 
 
 class FakeRedis:
@@ -38,18 +38,18 @@ class FakeRedis:
         pass
 
 
-def test_enqueue_asset_once_deduplicates_by_asset_identity():
+def test_enqueue_pano_download_once_deduplicates_by_pano_file_identity():
     fake = FakeRedis()
-    queue = RedisAssetQueue(fake, "streetview", "job1")
+    queue = RedisPanoDownloadQueue(fake, "streetview", "job1")
 
-    assert queue.enqueue_asset_once("job1", "pano1", "panorama", "full") is True
-    assert queue.enqueue_asset_once("job1", "pano1", "panorama", "full") is False
-    assert len(fake.lists[queue.asset_queue_key]) == 1
+    assert queue.enqueue_pano_download_once("job1", "pano1", "panorama", "full") is True
+    assert queue.enqueue_pano_download_once("job1", "pano1", "panorama", "full") is False
+    assert len(fake.lists[queue.pano_download_queue_key]) == 1
 
 
 def test_metadata_done_flag():
     fake = FakeRedis()
-    queue = RedisAssetQueue(fake, "streetview", "job1")
+    queue = RedisPanoDownloadQueue(fake, "streetview", "job1")
 
     assert queue.metadata_done() is False
     queue.set_metadata_done()

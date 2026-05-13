@@ -43,12 +43,12 @@ CREATE TABLE IF NOT EXISTS pano (
   KEY idx_pano_provider (provider)
 );
 
-CREATE TABLE IF NOT EXISTS pano_asset (
+CREATE TABLE IF NOT EXISTS pano_file (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   job_id VARCHAR(64) NOT NULL,
   panoid VARCHAR(128) NOT NULL,
-  asset_type VARCHAR(64) NOT NULL,
-  asset_spec VARCHAR(128) NOT NULL,
+  file_type VARCHAR(64) NOT NULL,
+  file_spec VARCHAR(128) NOT NULL,
   file_path VARCHAR(1024) NULL,
   file_size_bytes BIGINT NULL,
   width INT NULL,
@@ -58,9 +58,9 @@ CREATE TABLE IF NOT EXISTS pano_asset (
   error_message TEXT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE KEY uq_asset_job_panoid_type_spec (job_id, panoid, asset_type, asset_spec),
-  KEY idx_asset_job_status (job_id, status),
-  KEY idx_asset_sha256 (sha256)
+  UNIQUE KEY uq_pano_file_job_panoid_type_spec (job_id, panoid, file_type, file_spec),
+  KEY idx_pano_file_job_status (job_id, status),
+  KEY idx_pano_file_sha256 (sha256)
 );
 
 CREATE TABLE IF NOT EXISTS crawl_error (

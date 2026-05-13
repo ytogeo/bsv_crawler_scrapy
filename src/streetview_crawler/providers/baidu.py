@@ -1,8 +1,16 @@
-from __future__ import annotations
+"""
+百度街景接口适配模块。
 
-import hashlib
-import json
-from urllib.parse import quote
+该模块封装百度街景接口的业务细节，包括：
+- 构造 seed、metadata 和全景瓦片请求 URL
+- 从 seed 响应中提取 panoid
+- 从 metadata 响应中提取坐标、拍摄日期等字段
+
+模块本身不直接发起网络请求。Scrapy spider 负责 seed/metadata 请求，
+pano 下载流程负责瓦片请求。
+"""
+
+from __future__ import annotations
 
 
 def build_seed_url(lng: float, lat: float) -> str:
@@ -13,28 +21,8 @@ def build_metadata_url(panoid: str) -> str:
     return f"https://mapsv0.bdimg.com/?qt=sdata&sid={panoid}"
 
 
-def build_mock_seed_data(point_index: int, lng: float, lat: float) -> dict:
-    digest = hashlib.sha1(f"{point_index}:{lng}:{lat}".encode("utf-8")).hexdigest()[:16]
-    return {
-        "result": "ok",
-        "panoid": f"mock_{digest}",
-        "source": {"point_index": point_index, "lng": lng, "lat": lat},
-    }
-
-
-def build_mock_metadata_data(panoid: str, lng: float, lat: float) -> dict:
-    return {
-        "result": "ok",
-        "panoid": panoid,
-        "location": {"lng": lng, "lat": lat},
-        "capture_date": "2026-01",
-        "provider": "baidu",
-    }
-
-
-def data_url(payload: dict) -> str:
-    encoded = quote(json.dumps(payload, ensure_ascii=False))
-    return f"data:application/json,{encoded}"
+def build_panorama_tile_url(panoid: str, x: int, y: int, zoom: int) -> str:
+    return f"https://mapsv0.bdimg.com/?qt=pdata&sid={panoid}&pos={x}_{y}&z={zoom}"
 
 
 def extract_panoid_from_seed(data: dict) -> str | None:
@@ -54,8 +42,7 @@ def extract_pano_lat(data: dict) -> float | None:
 
 
 def extract_capture_date(data: dict) -> str | None:
-    value = _find_string_by_key(data, {"capture_date", "CaptureDate", "date", "TimeLine"})
-    return value
+    return _find_string_by_key(data, {"capture_date", "CaptureDate", "date", "TimeLine"})
 
 
 def _first_float(data: dict, names: list[str]) -> float | None:

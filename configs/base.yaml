@@ -8,20 +8,15 @@ crawler:
   timeout_seconds: 10
   retry_times: 3
   concurrency: 16
-  mock_seed: true
-  mock_metadata: true
 
-assets:
+pano_file:
   enabled: true
   workers: 2
-  asset_type: panorama
-  asset_spec: full
-  mock_download: true
+  file_type: panorama
+  file_spec: full
   tile_zoom: 4
   tile_cols: 4
   tile_rows: 2
-  tile_width: 256
-  tile_height: 256
   retry_times: 3
 
 mysql:
@@ -29,4 +24,3 @@ mysql:
 
 redis:
   key_prefix: streetview
-

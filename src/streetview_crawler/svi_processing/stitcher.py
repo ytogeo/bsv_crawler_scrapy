@@ -1,9 +1,21 @@
+"""
+全景图文件处理工具模块。
+
+该模块只包含纯图片/文件操作：
+- 将 Pillow 图片瓦片按网格拼接为全景图
+- 将图片保存到本地
+- 计算文件 SHA256 指纹
+- 读取已保存图片的尺寸和文件元数据
+
+模块不依赖 Redis、MySQL 或 Scrapy。
+"""
+
 from __future__ import annotations
 
 import hashlib
 from pathlib import Path
 
-from PIL import Image, ImageDraw
+from PIL import Image
 
 
 def stitch_grid(tiles: list[Image.Image], cols: int, rows: int) -> Image.Image:
@@ -16,15 +28,6 @@ def stitch_grid(tiles: list[Image.Image], cols: int, rows: int) -> Image.Image:
         y = (index // cols) * height
         canvas.paste(tile.convert("RGB"), (x, y))
     return canvas
-
-
-def make_mock_tile(panoid: str, tile_x: int, tile_y: int, width: int, height: int) -> Image.Image:
-    digest = hashlib.sha1(f"{panoid}:{tile_x}:{tile_y}".encode("utf-8")).hexdigest()
-    color = tuple(int(digest[i : i + 2], 16) for i in (0, 2, 4))
-    image = Image.new("RGB", (width, height), color)
-    draw = ImageDraw.Draw(image)
-    draw.text((16, 16), f"{panoid}\n{tile_x},{tile_y}", fill=(255, 255, 255))
-    return image
 
 
 def save_image(image: Image.Image, path: Path) -> None:

@@ -1,6 +1,6 @@
 from PIL import Image
 
-from streetview_crawler.services.image_stitcher import compute_sha256, inspect_image, save_image, stitch_grid
+from streetview_crawler.svi_processing.stitcher import compute_sha256, inspect_image, save_image, stitch_grid
 
 
 def test_stitch_grid_and_hash():
