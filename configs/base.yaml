@@ -15,8 +15,6 @@ pano_file:
   file_type: panorama
   file_spec: full
   tile_zoom: 4
-  tile_cols: 4
-  tile_rows: 2
   retry_times: 3
 
 mysql:

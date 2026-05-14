@@ -111,8 +111,6 @@ pano_file:
   file_type: panorama
   file_spec: full
   tile_zoom: 4
-  tile_cols: 4
-  tile_rows: 2
 ```
 
 接口地址和字段解析集中在下面两个模块中：

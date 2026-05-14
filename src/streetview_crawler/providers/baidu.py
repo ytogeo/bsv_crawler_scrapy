@@ -12,6 +12,13 @@ pano 下载流程负责瓦片请求。
 
 from __future__ import annotations
 
+PANORAMA_TILE_SHAPE = {
+    1: (1, 1),
+    2: (1, 2),
+    3: (2, 4),
+    4: (4, 8),
+}
+
 
 def build_seed_url(lng: float, lat: float) -> str:
     return f"https://mapsv0.bdimg.com/?qt=qsdata&x={lng}&y={lat}"
@@ -22,7 +29,14 @@ def build_metadata_url(panoid: str) -> str:
 
 
 def build_panorama_tile_url(panoid: str, x: int, y: int, zoom: int) -> str:
-    return f"https://mapsv0.bdimg.com/?qt=pdata&sid={panoid}&pos={x}_{y}&z={zoom}"
+    return f"https://mapsv1.bdimg.com/?qt=pdata&sid={panoid}&pos={x}_{y}&z={zoom}&from=PC"
+
+
+def get_panorama_tile_shape(zoom: int) -> tuple[int, int]:
+    if zoom not in PANORAMA_TILE_SHAPE:
+        supported = ", ".join(str(value) for value in sorted(PANORAMA_TILE_SHAPE))
+        raise ValueError(f"unsupported panorama zoom {zoom}; supported zoom values: {supported}")
+    return PANORAMA_TILE_SHAPE[zoom]
 
 
 def extract_panoid_from_seed(data: dict) -> str | None:

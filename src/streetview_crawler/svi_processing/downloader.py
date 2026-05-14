@@ -20,7 +20,7 @@ from PIL import Image
 
 from streetview_crawler.svi_processing.stitcher import inspect_image, save_image, stitch_grid
 from streetview_crawler.config import resolve_path
-from streetview_crawler.providers.baidu import build_panorama_tile_url
+from streetview_crawler.providers.baidu import build_panorama_tile_url, get_panorama_tile_shape
 
 
 def download_and_stitch_pano(task: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
@@ -30,17 +30,16 @@ def download_and_stitch_pano(task: dict[str, Any], config: dict[str, Any]) -> di
     panoid = task["panoid"]
     out_path = output_dir / job_id / f"{panoid}.jpg"
 
-    cols = int(pano_file_config.get("tile_cols", 4))
-    rows = int(pano_file_config.get("tile_rows", 2))
     zoom = int(pano_file_config.get("tile_zoom", 4))
+    x_count, y_count = get_panorama_tile_shape(zoom)
 
     tiles: list[Image.Image] = []
     session = requests.Session()
-    for y in range(rows):
-        for x in range(cols):
-            tiles.append(_download_tile(session, panoid, x, y, zoom))
+    for x_index in range(x_count):
+        for y_index in range(y_count):
+            tiles.append(_download_tile(session, panoid, x_index, y_index, zoom))
 
-    panorama = stitch_grid(tiles, cols, rows)
+    panorama = stitch_grid(tiles, cols=y_count, rows=x_count)
     save_image(panorama, out_path)
     return inspect_image(out_path)
 
